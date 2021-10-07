@@ -26,6 +26,8 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
   }
 
   reconnect() {
+    // reassign onclose to avoid info message about lost connection
+    this.websocket.onclose = () => {};
     this.websocket.close();
     this.websocket = this._createWebSocket();
   }
@@ -38,14 +40,26 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
 
     websocket.onopen = () => {
       log.appendLine("WebSocket connected");
-      vscode.commands.executeCommand("setContext", "is-running-mockup-server", true);
       this.websocket.send(JSON.stringify({ type: "PING" }));
     };
-
-    websocket.onerror = (error) => {
-      log.appendLine(`WebSocket error: ${JSON.stringify(error)}`);
+    websocket.onclose = () => {
       vscode.window
         .showInformationMessage(`Lost connection to the mockup server at ${uri}`, "Reconnect")
+        .then((value) => {
+          if (value === "Reconnect") {
+            this.reconnect();
+          }
+        });
+    };
+    websocket.onerror = (error) => {
+      // Avoid chaining multiple info messages
+      websocket.onclose = () => {};
+      log.appendLine(`WebSocket error`);
+      vscode.window
+        .showInformationMessage(
+          `Failed to connect to the mockup server at ${uri}. Please make sure that the mockup server is running.`,
+          "Reconnect"
+        )
         .then((value) => {
           if (value === "Reconnect") {
             this.reconnect();
@@ -79,6 +93,8 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
     log.appendLine(`[navigate] called with ${element.path}`);
     if (this.websocket.readyState === WebSocket.OPEN) {
       this.websocket.send(JSON.stringify({ type: "NAVIGATE", payload: element.path }));
+    } else {
+      log.appendLine(`[navigate] websocket not open (state: ${this.websocket.readyState})`);
     }
   }
 
@@ -90,13 +106,12 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
     log.appendLine(`getChildren called`);
     return new Promise((resolve) => {
       if (this.state) {
-        log.appendLine(`mapping`);
         resolve(this.state.mockups.map((mockup) => new MockupItem(mockup, vscode.TreeItemCollapsibleState.None)));
         return;
       }
 
       const interval = setInterval(() => {
-        log.appendLine(`waiting..`);
+        log.appendLine(`Waiting..`);
         if (this.state) {
           clearInterval(interval);
           resolve(this.state.mockups.map((mockup) => new MockupItem(mockup, vscode.TreeItemCollapsibleState.None)));
@@ -124,7 +139,7 @@ class MockupItem extends vscode.TreeItem {
     this.tooltip = mockup.title;
     // replace vs code workspace path with nothing
     const workspace = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(mockup.path))?.uri.toString() || "";
-    this.description = (workspace && `[${workspace}] `) + mockup.path.replace(workspace, "");
+    this.description = workspace ? mockup.path.replace(workspace.replace("file://", ""), ".") : mockup.path;
     this.command = {
       command: "react-native-mockups-explorer.select",
       arguments: [this],
