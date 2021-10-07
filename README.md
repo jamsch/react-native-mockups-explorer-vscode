@@ -1,5 +1,7 @@
 # react-native-mockups-explorer-vscode
 
+[![Badge for version for Visual Studio Code extension jamsch.react-native-mockups-explorer-vscode](https://vsmarketplacebadge.apphb.com/version/jamsch.react-native-mockups-explorer-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=jamsch.react-native-mockups-explorer-vscode)
+
 VS Code extension to explore your mockups and navigate to your code
 
 ![preview](https://i.imgur.com/1BEpyOI.gif)
