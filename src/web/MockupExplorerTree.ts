@@ -1,6 +1,4 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
-import * as path from "path";
 
 type Mockup = {
   title: string;
@@ -17,7 +15,7 @@ type AppState = {
 //Create output channel
 let log = vscode.window.createOutputChannel("React Native Mockups Explorer");
 
-export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
+export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem | ConnectItem> {
   websocket: WebSocket;
   state: AppState | undefined;
 
@@ -26,10 +24,12 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
   }
 
   reconnect() {
+    log.appendLine(`Attempting reconnection...`);
     // reassign onclose to avoid info message about lost connection
     this.websocket.onclose = () => {};
     this.websocket.close();
     this.websocket = this._createWebSocket();
+    this.refresh();
   }
 
   private _createWebSocket(): WebSocket {
@@ -112,7 +112,7 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
     return element;
   }
 
-  getChildren(element?: MockupItem): Thenable<MockupItem[]> {
+  getChildren(element?: MockupItem): Thenable<MockupItem[] | ConnectItem[]> {
     log.appendLine(`getChildren called`);
     return new Promise((resolve) => {
       if (this.state) {
@@ -121,6 +121,12 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
       }
 
       const interval = setInterval(() => {
+        if (this.websocket.readyState === WebSocket.CLOSED) {
+          clearInterval(interval);
+          resolve([new ConnectItem()]);
+          return;
+        }
+
         log.appendLine(`Waiting..`);
         if (this.state) {
           clearInterval(interval);
@@ -129,7 +135,6 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
         }
       }, 1000);
     });
-    //
   }
 
   private _onDidChangeTreeData: vscode.EventEmitter<MockupItem | undefined | null | void> = new vscode.EventEmitter<
@@ -140,6 +145,17 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+}
+
+class ConnectItem extends vscode.TreeItem {
+  constructor() {
+    super("Connect", vscode.TreeItemCollapsibleState.None);
+    this.tooltip = "Attempts to connect to the mockup server";
+    this.command = {
+      command: "react-native-mockups-explorer.reconnect",
+      title: "Connect",
+    };
   }
 }
 
