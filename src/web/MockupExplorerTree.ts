@@ -95,6 +95,16 @@ export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem> {
       this.websocket.send(JSON.stringify({ type: "NAVIGATE", payload: element.path }));
     } else {
       log.appendLine(`[navigate] websocket not open (state: ${this.websocket.readyState})`);
+      vscode.window
+        .showInformationMessage(
+          `Failed to connect to the mockup server. Please make sure that the mockup server is running.`,
+          "Reconnect"
+        )
+        .then((value) => {
+          if (value === "Reconnect") {
+            this.reconnect();
+          }
+        });
     }
   }
 
