@@ -12,8 +12,9 @@ type AppState = {
   path: string | null;
   mockups: Mockup[];
 };
+
 //Create output channel
-let log = vscode.window.createOutputChannel("React Native Mockups Explorer");
+export const log = vscode.window.createOutputChannel("React Native Mockups Explorer");
 
 export class MockupExplorerTree implements vscode.TreeDataProvider<MockupItem | ConnectItem> {
   websocket: WebSocket;
