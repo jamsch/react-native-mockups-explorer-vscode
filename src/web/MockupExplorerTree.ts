@@ -7,8 +7,9 @@ type Mockup = {
 };
 
 type AppState = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  has_synced: boolean;
+  projectRoot: string;
+  hasSynced: boolean;
+  /** Relative path */
   path: string | null;
   mockups: Mockup[];
 };

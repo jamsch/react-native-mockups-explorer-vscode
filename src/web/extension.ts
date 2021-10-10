@@ -16,17 +16,29 @@ export function activate(context: vscode.ExtensionContext) {
     // Emit navigate
     mockupExplorerTree.navigate(args.mockup);
 
+    const projectRoot = mockupExplorerTree.state?.projectRoot;
+
+    if (!projectRoot) {
+      log.appendLine(`No project root found. Skipping file navigation`);
+      return;
+    }
+
     // Open file
-    const path = args.mockup.path as string;
+    const relativePath = args.mockup.path as string;
+
+    // Combine project root with relative path, accounting for "../" and forward/backward slashes
+    const basePath = vscode.Uri.parse(projectRoot);
+    const fullPath = vscode.Uri.joinPath(basePath, relativePath)?.fsPath;
+    // log.appendLine(`fullPath: ${fullPath}, relativePath: ${relativePath}`);
 
     const filePath = await (async () => {
-      const regularFilePath = vscode.Uri.file(path);
+      const regularFilePath = vscode.Uri.file(fullPath);
       // Check if file exists in workspace
       try {
         await vscode.workspace.fs.stat(regularFilePath);
         return regularFilePath;
       } catch (e) {
-        log.appendLine(`File ${path} does not exist. Falling back to remote.`);
+        log.appendLine(`File ${fullPath} does not exist. Falling back to remote.`);
       }
 
       // Fall back to remote file path
@@ -46,9 +58,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.executeCommand("vscode.open", filePath);
 
-    vscode.workspace.openTextDocument(path).then((doc) => {
+    /*
+    vscode.workspace.openTextDocument(filePath).then((doc) => {
       vscode.window.showTextDocument(doc);
     });
+    */
   });
 
   vscode.workspace.onDidChangeConfiguration((e) => {
